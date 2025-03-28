@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/cko-recruitment/payment-gateway-challenge-go/internal/ports/http/clients/mocks"
+	"github.com/golang/mock/gomock"
+	"github.com/google/uuid"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -35,11 +38,14 @@ var (
 
 func TestForwardPaymentRequest(t *testing.T) {
 	tests := []struct {
-		name             string
-		request          *models.BankSimPaymentRequest
-		shouldCallApi    bool
-		expectedResponse *models.BankSimPaymentResponse
-		expectedError    error
+		name               string
+		request            *models.BankSimPaymentRequest
+		shouldTriggerRetry bool
+		retryPayload       *models.BankSimPaymentResponse
+		retryError         error
+		shouldCallApi      bool
+		expectedResponse   *models.BankSimPaymentResponse
+		expectedError      error
 	}{
 		{
 			name:             "request is nil, returns error",
@@ -65,6 +71,32 @@ func TestForwardPaymentRequest(t *testing.T) {
 			},
 			expectedError: nil,
 		},
+		{
+			name:               "server unavailable and retry returns error",
+			request:            &validRequest,
+			shouldCallApi:      true,
+			shouldTriggerRetry: true,
+			retryError:         errors.New("retry returned an error"),
+			retryPayload:       nil,
+			expectedResponse:   nil,
+			expectedError:      errors.New("retry returned an error"),
+		},
+		{
+			name:               "server unavailable and retry succeeds",
+			request:            &validRequest,
+			shouldCallApi:      true,
+			shouldTriggerRetry: true,
+			retryError:         nil,
+			retryPayload: &models.BankSimPaymentResponse{
+				Authorized:        true,
+				AuthorizationCode: "0bb07405-6d44-4b50-a14f-7ae0beff13ad",
+			},
+			expectedResponse: &models.BankSimPaymentResponse{
+				Authorized:        true,
+				AuthorizationCode: "0bb07405-6d44-4b50-a14f-7ae0beff13ad",
+			},
+			expectedError: nil,
+		},
 	}
 
 	for _, tt := range tests {
@@ -76,6 +108,11 @@ func TestForwardPaymentRequest(t *testing.T) {
 				case "POST":
 					calledServer = true
 					assert.Equal(t, "", r.URL.RawQuery)
+					if tt.shouldTriggerRetry {
+						w.WriteHeader(http.StatusServiceUnavailable)
+						return
+					}
+
 					req := models.BankSimPaymentRequest{}
 					if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 						t.Errorf("error decoding request: %v", err)
@@ -105,14 +142,20 @@ func TestForwardPaymentRequest(t *testing.T) {
 			cfg := &config.Config{
 				BankSimURL: testServer.URL,
 			}
-
+			paymentID := uuid.New().String()
 			httpClient := http.Client{}
-
 			ctx := context.Background()
 			logger := logrus.New().WithContext(ctx)
-			bankSimApiClient := clients.NewBankSimAPI(httpClient, cfg, logger)
+			ctrl := gomock.NewController(t)
+			mockRetryHandler := mocks.NewMockIBankSimApiRetryHandler(ctrl)
+			bankSimApiClient := clients.NewBankSimAPI(httpClient, mockRetryHandler, cfg, logger)
+			if tt.shouldTriggerRetry {
+				mockRetryHandler.EXPECT().BeginRetry(paymentID, gomock.Eq(cfg.BankSimURL+"/payments"), gomock.Eq(tt.request)).Return(tt.retryPayload, tt.retryError).Times(1)
+			} else {
+				mockRetryHandler.EXPECT().BeginRetry(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+			}
 
-			response, err := bankSimApiClient.ForwardPaymentRequest(tt.request)
+			response, err := bankSimApiClient.ForwardPaymentRequest(paymentID, tt.request)
 
 			if tt.expectedResponse != nil {
 				assert.EqualValues(t, tt.expectedResponse, response)

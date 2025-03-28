@@ -13,6 +13,7 @@ import (
 	"time"
 )
 
+//go:generate mockgen -destination=./mocks/IBankSimApiRetryHandler.go -package mocks . IBankSimApiRetryHandler
 type (
 	BankSimApiRetryHandler struct {
 		httpClient http.Client
@@ -37,6 +38,7 @@ func NewBankSimApiRetryHandler(httpClient http.Client, cfg *config.Config, logge
 	}
 }
 
+// BeginRetry handles an exponential back off series of calls to the bank api. 1 second, 2 seconds, 4 seconds, 8 seconds, 16 seconds in response to 503
 func (b *BankSimApiRetryHandler) BeginRetry(paymentID, url string, request *models.BankSimPaymentRequest) (*models.BankSimPaymentResponse, error) {
 	for i := 0; i < maxRetryLimit; i++ {
 		b.logger.Infof("attempting payment request retry for paymentID: [%s] attempt: [%v]", paymentID, i)
