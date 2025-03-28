@@ -60,7 +60,8 @@ func main() {
 
 	paymentIdCreator := helpers.NewPaymentIDCreator()
 	paymentsValidator := validation.NewPaymentValidator(logger)
-	bankSimApiClient := clients.NewBankSimAPI(httpClient, &cfg, logger)
+	bankSimApiRetryHandler := clients.NewBankSimApiRetryHandler(httpClient, &cfg, logger)
+	bankSimApiClient := clients.NewBankSimAPI(httpClient, bankSimApiRetryHandler, &cfg, logger)
 	paymentsRepository := repository.NewPaymentsRepository(logger)
 	paymentsService := payments.NewService(paymentsRepository, bankSimApiClient, paymentsValidator, paymentIdCreator, logger)
 	handlers := controllers.NewHandlers(paymentsService, paymentsValidator, paymentIdCreator, logger)

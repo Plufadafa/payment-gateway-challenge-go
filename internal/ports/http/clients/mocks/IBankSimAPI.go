@@ -35,16 +35,16 @@ func (m *MockIBankSimAPI) EXPECT() *MockIBankSimAPIMockRecorder {
 }
 
 // ForwardPaymentRequest mocks base method.
-func (m *MockIBankSimAPI) ForwardPaymentRequest(arg0 *models.BankSimPaymentRequest) (*models.BankSimPaymentResponse, error) {
+func (m *MockIBankSimAPI) ForwardPaymentRequest(arg0 string, arg1 *models.BankSimPaymentRequest) (*models.BankSimPaymentResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ForwardPaymentRequest", arg0)
+	ret := m.ctrl.Call(m, "ForwardPaymentRequest", arg0, arg1)
 	ret0, _ := ret[0].(*models.BankSimPaymentResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ForwardPaymentRequest indicates an expected call of ForwardPaymentRequest.
-func (mr *MockIBankSimAPIMockRecorder) ForwardPaymentRequest(arg0 interface{}) *gomock.Call {
+func (mr *MockIBankSimAPIMockRecorder) ForwardPaymentRequest(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ForwardPaymentRequest", reflect.TypeOf((*MockIBankSimAPI)(nil).ForwardPaymentRequest), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ForwardPaymentRequest", reflect.TypeOf((*MockIBankSimAPI)(nil).ForwardPaymentRequest), arg0, arg1)
 }

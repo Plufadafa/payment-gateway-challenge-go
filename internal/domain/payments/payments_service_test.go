@@ -141,7 +141,7 @@ func (s *ServiceSuite) TestProcessPayment_BankSimClientErrors_ReturnsError() {
 	}
 	paymentID := uuid.New().String()
 	s.mockPaymentsValidator.EXPECT().ValidateProcessPaymentRequest(gomock.Eq(paymentID), gomock.Eq(&s.validProcessRequest)).Return(nil)
-	s.mockBankSimApiClient.EXPECT().ForwardPaymentRequest(gomock.Eq(&bankSimRequest)).Return(nil, errors.New("error"))
+	s.mockBankSimApiClient.EXPECT().ForwardPaymentRequest(gomock.Eq(paymentID), gomock.Eq(&bankSimRequest)).Return(nil, errors.New("error"))
 	res, err := s.service.ProcessPayment(paymentID, &s.validProcessRequest)
 
 	s.Assert().Error(err)
@@ -184,7 +184,7 @@ func (s *ServiceSuite) TestProcessPayment_PaymentProcessedAndPersisted_ReturnsCo
 	}
 
 	s.mockPaymentsValidator.EXPECT().ValidateProcessPaymentRequest(gomock.Eq(paymentID), gomock.Eq(&s.validProcessRequest)).Return(nil)
-	s.mockBankSimApiClient.EXPECT().ForwardPaymentRequest(gomock.Eq(&bankSimRequest)).Return(&bankSimResponse, nil)
+	s.mockBankSimApiClient.EXPECT().ForwardPaymentRequest(gomock.Eq(paymentID), gomock.Eq(&bankSimRequest)).Return(&bankSimResponse, nil)
 	s.mockPaymentsRepository.EXPECT().AddPayment(gomock.Eq(repoPersistencePayment)).Return(&repoPersistencePayment, nil)
 	res, err := s.service.ProcessPayment(paymentID, &s.validProcessRequest)
 
@@ -291,7 +291,7 @@ func (s *ServiceSuite) TestProcessPayment_UUIDCollision_RetriesMaxFiveTimes() {
 	s.mockPaymentIDCreator.EXPECT().CreatePaymentID().Return(remadePaymentIDFive).Times(1)
 
 	s.mockPaymentsValidator.EXPECT().ValidateProcessPaymentRequest(gomock.Eq(paymentID), gomock.Eq(&s.validProcessRequest)).Return(nil)
-	s.mockBankSimApiClient.EXPECT().ForwardPaymentRequest(gomock.Eq(&bankSimRequest)).Return(&bankSimResponse, nil)
+	s.mockBankSimApiClient.EXPECT().ForwardPaymentRequest(gomock.Eq(paymentID), gomock.Eq(&bankSimRequest)).Return(&bankSimResponse, nil)
 	s.mockPaymentsRepository.EXPECT().AddPayment(gomock.Eq(repoPersistencePayment)).Return(nil, repo.ErrPaymentIDCollision).Times(1)
 
 	s.mockPaymentsRepository.EXPECT().AddPayment(gomock.Eq(repoPersistencePaymentRetryOne)).Return(nil, repo.ErrPaymentIDCollision).Times(1)

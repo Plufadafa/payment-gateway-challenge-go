@@ -94,7 +94,7 @@ func (s *Service) ProcessPayment(paymentID string, processPaymentRequest *shared
 		ExpiryDate: s.formatExpiryDate(processPaymentRequest.ExpiryMonth, processPaymentRequest.ExpiryYear),
 	}
 
-	bankSimResponse, err := s.bankSimApiClient.ForwardPaymentRequest(&bankSimRequest)
+	bankSimResponse, err := s.bankSimApiClient.ForwardPaymentRequest(paymentID, &bankSimRequest)
 	if err != nil {
 		s.logger.WithError(err).Errorf("failed to forward payment request for paymentID: [%s]", paymentID)
 		return nil, err
