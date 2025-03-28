@@ -34,6 +34,10 @@ var (
 		Amount:     -1,
 		CVV:        "901ssssss",
 	}
+	authorizedResponse = models.BankSimPaymentResponse{
+		Authorized:        true,
+		AuthorizationCode: "0bb07405-6d44-4b50-a14f-7ae0beff13ad",
+	}
 )
 
 func TestForwardPaymentRequest(t *testing.T) {
@@ -62,14 +66,11 @@ func TestForwardPaymentRequest(t *testing.T) {
 			expectedError:    errors.New("card number is invalid"),
 		},
 		{
-			name:          "request resolves without error, returns response",
-			request:       &validRequest,
-			shouldCallApi: true,
-			expectedResponse: &models.BankSimPaymentResponse{
-				Authorized:        true,
-				AuthorizationCode: "0bb07405-6d44-4b50-a14f-7ae0beff13ad",
-			},
-			expectedError: nil,
+			name:             "request resolves without error, returns response",
+			request:          &validRequest,
+			shouldCallApi:    true,
+			expectedResponse: &authorizedResponse,
+			expectedError:    nil,
 		},
 		{
 			name:               "server unavailable and retry returns error",
@@ -87,15 +88,9 @@ func TestForwardPaymentRequest(t *testing.T) {
 			shouldCallApi:      true,
 			shouldTriggerRetry: true,
 			retryError:         nil,
-			retryPayload: &models.BankSimPaymentResponse{
-				Authorized:        true,
-				AuthorizationCode: "0bb07405-6d44-4b50-a14f-7ae0beff13ad",
-			},
-			expectedResponse: &models.BankSimPaymentResponse{
-				Authorized:        true,
-				AuthorizationCode: "0bb07405-6d44-4b50-a14f-7ae0beff13ad",
-			},
-			expectedError: nil,
+			retryPayload:       &authorizedResponse,
+			expectedResponse:   &authorizedResponse,
+			expectedError:      nil,
 		},
 	}
 

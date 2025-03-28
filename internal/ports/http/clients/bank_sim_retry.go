@@ -26,8 +26,6 @@ type (
 	}
 )
 
-const maxRetryLimit = 5
-
 var baseDelay = 1 * time.Second
 
 func NewBankSimApiRetryHandler(httpClient http.Client, cfg *config.Config, logger *logrus.Entry) IBankSimApiRetryHandler {
@@ -40,7 +38,7 @@ func NewBankSimApiRetryHandler(httpClient http.Client, cfg *config.Config, logge
 
 // BeginRetry handles an exponential back off series of calls to the bank api. 1 second, 2 seconds, 4 seconds, 8 seconds, 16 seconds in response to 503
 func (b *BankSimApiRetryHandler) BeginRetry(paymentID, url string, request *models.BankSimPaymentRequest) (*models.BankSimPaymentResponse, error) {
-	for i := 0; i < maxRetryLimit; i++ {
+	for i := 0; i < b.cfg.MaxRetryLimit; i++ {
 		b.logger.Infof("attempting payment request retry for paymentID: [%s] attempt: [%v]", paymentID, i)
 		resp, shouldRetry, err := b.performRequest(paymentID, url, i, request)
 		// shortcuts to continue the exponential backoff with a wait
@@ -102,7 +100,7 @@ func (b *BankSimApiRetryHandler) performRequest(paymentID, url string, retryAtte
 		responseBodyString := bytes.NewBuffer(bod).String()
 
 		b.logger.Infof("paymentID: [%s] payment process resulted in error: [%v] error message: [%s]", paymentID, resp.StatusCode, responseBodyString)
-		return nil, false, nil
+		return nil, false, &ErrPaymentRequest{message: responseBodyString}
 	}
 
 	// retry succeeded, decode the response and return false for attemptRetry

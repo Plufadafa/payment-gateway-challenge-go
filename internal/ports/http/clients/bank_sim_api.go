@@ -35,6 +35,10 @@ func (e *ErrPaymentRequest) Error() string {
 	return e.message
 }
 
+func NewErrPaymentRequest(message string) *ErrPaymentRequest {
+	return &ErrPaymentRequest{message: message}
+}
+
 func NewBankSimAPI(httpClient http.Client, bankSimApiRetryHandler IBankSimApiRetryHandler, cfg *config.Config, logger *logrus.Entry) IBankSimAPI {
 	return &BankSimAPI{
 		httpClient:             httpClient,
