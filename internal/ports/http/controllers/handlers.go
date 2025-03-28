@@ -3,6 +3,7 @@ package controllers
 import (
 	"fmt"
 	"github.com/cko-recruitment/payment-gateway-challenge-go/internal/domain/payments"
+	"github.com/cko-recruitment/payment-gateway-challenge-go/internal/pkg/helpers"
 	"github.com/cko-recruitment/payment-gateway-challenge-go/internal/pkg/validation"
 	"github.com/go-chi/chi/v5"
 	"github.com/sirupsen/logrus"
@@ -13,6 +14,7 @@ type (
 	Handlers struct {
 		paymentsService   payments.IService
 		paymentsValidator validation.IPaymentValidator
+		paymentIDCreator  helpers.IPaymentIDCreator
 		logger            *logrus.Entry
 	}
 
@@ -21,11 +23,12 @@ type (
 	}
 )
 
-func NewHandlers(paymentsService payments.IService, paymentsValidator validation.IPaymentValidator, logger *logrus.Entry) IHandlers {
+func NewHandlers(paymentsService payments.IService, paymentsValidator validation.IPaymentValidator, paymentIDCreator helpers.IPaymentIDCreator, logger *logrus.Entry) IHandlers {
 	return &Handlers{
 		paymentsService:   paymentsService,
-		logger:            logger,
 		paymentsValidator: paymentsValidator,
+		paymentIDCreator:  paymentIDCreator,
+		logger:            logger,
 	}
 }
 

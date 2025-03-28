@@ -6,7 +6,6 @@ import (
 	"github.com/cko-recruitment/payment-gateway-challenge-go/internal/pkg/models"
 	"github.com/cko-recruitment/payment-gateway-challenge-go/internal/pkg/validation"
 	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
 	"net/http"
 )
 
@@ -65,7 +64,7 @@ func (h *Handlers) getPayment(w http.ResponseWriter, r *http.Request) {
 // @Router /api/payments [POST]
 func (h *Handlers) processPayment(w http.ResponseWriter, r *http.Request) {
 	var req models.ProcessPaymentRequest
-	paymentID := uuid.New().String()
+	paymentID := h.paymentIDCreator.CreatePaymentID()
 	h.logger.Infof("received request to process payment for paymentID:[%s]", paymentID)
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

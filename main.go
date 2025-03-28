@@ -6,6 +6,7 @@ import (
 	_ "github.com/cko-recruitment/payment-gateway-challenge-go/docs"
 	"github.com/cko-recruitment/payment-gateway-challenge-go/internal/config"
 	"github.com/cko-recruitment/payment-gateway-challenge-go/internal/domain/payments"
+	"github.com/cko-recruitment/payment-gateway-challenge-go/internal/pkg/helpers"
 	"github.com/cko-recruitment/payment-gateway-challenge-go/internal/pkg/validation"
 	"github.com/cko-recruitment/payment-gateway-challenge-go/internal/ports/http/clients"
 	"github.com/cko-recruitment/payment-gateway-challenge-go/internal/ports/http/controllers"
@@ -57,11 +58,12 @@ func main() {
 	))
 	httpClient := http.Client{}
 
+	paymentIdCreator := helpers.NewPaymentIDCreator()
 	paymentsValidator := validation.NewPaymentValidator(logger)
 	bankSimApiClient := clients.NewBankSimAPI(httpClient, &cfg, logger)
 	paymentsRepository := repository.NewPaymentsRepository(logger)
-	paymentsService := payments.NewService(paymentsRepository, bankSimApiClient, paymentsValidator, logger)
-	handlers := controllers.NewHandlers(paymentsService, paymentsValidator, logger)
+	paymentsService := payments.NewService(paymentsRepository, bankSimApiClient, paymentsValidator, paymentIdCreator, logger)
+	handlers := controllers.NewHandlers(paymentsService, paymentsValidator, paymentIdCreator, logger)
 	handlers.SetupRoutes(chiRouter)
 
 	logger.Fatal(http.ListenAndServe(port, chiRouter))

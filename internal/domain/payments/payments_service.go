@@ -4,13 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"github.com/cko-recruitment/payment-gateway-challenge-go/internal/domain/payments/models"
+	"github.com/cko-recruitment/payment-gateway-challenge-go/internal/pkg/helpers"
 	sharedmodels "github.com/cko-recruitment/payment-gateway-challenge-go/internal/pkg/models"
 	"github.com/cko-recruitment/payment-gateway-challenge-go/internal/pkg/status"
 	"github.com/cko-recruitment/payment-gateway-challenge-go/internal/pkg/validation"
 	"github.com/cko-recruitment/payment-gateway-challenge-go/internal/ports/http/clients"
 	banksimapimodels "github.com/cko-recruitment/payment-gateway-challenge-go/internal/ports/http/clients/models"
 	"github.com/cko-recruitment/payment-gateway-challenge-go/internal/ports/repository"
-	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"strconv"
 )
@@ -21,6 +21,7 @@ type (
 		paymentsRepository repository.IPaymentsRepository
 		bankSimApiClient   clients.IBankSimAPI
 		paymentsValidator  validation.IPaymentValidator
+		paymentIDCreator   helpers.IPaymentIDCreator
 		logger             *logrus.Entry
 	}
 
@@ -34,11 +35,12 @@ const (
 	maxPersistenceAttempt = 5
 )
 
-func NewService(paymentsRepository repository.IPaymentsRepository, bankSimApiClient clients.IBankSimAPI, paymentsValidator validation.IPaymentValidator, logger *logrus.Entry) IService {
+func NewService(paymentsRepository repository.IPaymentsRepository, bankSimApiClient clients.IBankSimAPI, paymentsValidator validation.IPaymentValidator, paymentIDCreator helpers.IPaymentIDCreator, logger *logrus.Entry) IService {
 	return &Service{
 		paymentsRepository: paymentsRepository,
 		bankSimApiClient:   bankSimApiClient,
 		paymentsValidator:  paymentsValidator,
+		paymentIDCreator:   paymentIDCreator,
 		logger:             logger,
 	}
 }
@@ -79,6 +81,11 @@ func (s *Service) ProcessPayment(paymentID string, processPaymentRequest *shared
 		return nil, err
 	}
 
+	if err = validation.ValidatePaymentID(paymentID); err != nil {
+		s.logger.WithError(err).Errorf("paymentID:[%s] failed validation", paymentID)
+		return nil, err
+	}
+
 	bankSimRequest := banksimapimodels.BankSimPaymentRequest{
 		CardNumber: processPaymentRequest.CardNumber,
 		Currency:   processPaymentRequest.Currency,
@@ -93,12 +100,7 @@ func (s *Service) ProcessPayment(paymentID string, processPaymentRequest *shared
 		return nil, err
 	}
 
-	lastFourCardNum, err := strconv.Atoi(processPaymentRequest.CardNumber[len(processPaymentRequest.CardNumber)-4:])
-	if err != nil {
-		m := fmt.Sprintf("failed to convert card number to int for paymentID: [%s]", paymentID)
-		s.logger.Error(m)
-		return nil, errors.New(m)
-	}
+	lastFourCardNum := processPaymentRequest.CardNumber[len(processPaymentRequest.CardNumber)-4:]
 
 	bankSimResponseStatus := status.StateFromIsAuthorized(bankSimResponse.Authorized)
 
@@ -133,11 +135,11 @@ func (s *Service) ProcessPayment(paymentID string, processPaymentRequest *shared
 func (s *Service) formatExpiryDate(month, year int) string {
 	formattedMonth := strconv.Itoa(month)
 
-	if month > 9 {
+	if month <= 9 {
 		formattedMonth = "0" + formattedMonth
 	}
 
-	return fmt.Sprintf("%s/%s", formattedMonth, year)
+	return fmt.Sprintf("%s/%v", formattedMonth, year)
 }
 
 func (s *Service) persistPayment(paymentID string, paymentToPersist repository.Payment) *repository.Payment {
@@ -145,10 +147,13 @@ func (s *Service) persistPayment(paymentID string, paymentToPersist repository.P
 	if err != nil {
 		if errors.Is(repository.ErrPaymentIDCollision, err) {
 			s.logger.Infof("uuid collision occurred for paymentID: [%s], reattempting repository write", paymentID)
+			newPaymentID := s.paymentIDCreator.CreatePaymentID()
+			s.logger.Infof("reattempting payment persistence. Reassigning paymentID: [%s] to [%s]", paymentToPersist.Id, newPaymentID)
+			paymentToPersist.Id = newPaymentID
 		} else {
 			s.logger.Errorf("error occurred during AddPayment for paymentID [%s]", paymentID)
 		}
-		return s.retryPersistPayment(paymentID, persistedPayment)
+		return s.retryPersistPayment(paymentID, &paymentToPersist)
 	}
 	return persistedPayment
 }
@@ -159,7 +164,7 @@ func (s *Service) retryPersistPayment(originalPaymentID string, paymentToPersist
 		if err != nil {
 			if errors.Is(repository.ErrPaymentIDCollision, err) {
 				s.logger.Errorf("uuid collision occurred for paymentID: [%s] on retry attempt: [%s]", paymentToPersist.Id, strconv.Itoa(i))
-				newPaymentID := uuid.New().String()
+				newPaymentID := s.paymentIDCreator.CreatePaymentID()
 				s.logger.Infof("reattempting payment persistence. Reassigning paymentID: [%s] to [%s]", paymentToPersist.Id, newPaymentID)
 				paymentToPersist.Id = newPaymentID
 			} else {
@@ -172,7 +177,7 @@ func (s *Service) retryPersistPayment(originalPaymentID string, paymentToPersist
 		return persistedPayment
 	}
 
-	s.logger.Errorf("failed to persist payment with original paymentID: [%s] maximum number of times: [%s] triggering page and returning payment with original paymentID", originalPaymentID, maxPersistenceAttempt)
+	s.logger.Errorf("failed to persist payment with original paymentID: [%s] maximum number of times: [%v] triggering page and returning payment with original paymentID", originalPaymentID, maxPersistenceAttempt)
 	// trigger page to alert team to failed persistence of payment with X fields provided within PCI regulation to identify payment. Will return the payment as if it had been persisted
 	// to our database so Merchant can see success.
 	return paymentToPersist
