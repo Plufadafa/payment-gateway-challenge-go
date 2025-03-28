@@ -3,12 +3,19 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
-
-	"github.com/cko-recruitment/payment-gateway-challenge-go/docs"
-	"github.com/cko-recruitment/payment-gateway-challenge-go/internal/api"
+	_ "github.com/cko-recruitment/payment-gateway-challenge-go/docs"
+	"github.com/cko-recruitment/payment-gateway-challenge-go/internal/config"
+	"github.com/cko-recruitment/payment-gateway-challenge-go/internal/domain/payments"
+	"github.com/cko-recruitment/payment-gateway-challenge-go/internal/pkg/validation"
+	"github.com/cko-recruitment/payment-gateway-challenge-go/internal/ports/http/clients"
+	"github.com/cko-recruitment/payment-gateway-challenge-go/internal/ports/http/controllers"
+	"github.com/cko-recruitment/payment-gateway-challenge-go/internal/ports/repository"
+	"github.com/go-chi/chi/v5"
+	"github.com/joho/godotenv"
+	"github.com/kelseyhightower/envconfig"
+	"github.com/sirupsen/logrus"
+	httpSwagger "github.com/swaggo/http-swagger"
+	"net/http"
 )
 
 var (
@@ -25,39 +32,37 @@ var (
 
 // @securityDefinitions.basic	BasicAuth
 func main() {
-	fmt.Printf("version %s, commit %s, built at %s\n", version, commit, date)
-	docs.SwaggerInfo.Version = version
+	ctx := context.Background()
 
-	err := run()
+	logger := logrus.New().WithContext(ctx)
+
+	logger.Infof("version %s, commit %s, built at %s\n", version, commit, date)
+
+	err := godotenv.Load("cmd/.env")
 	if err != nil {
-		fmt.Printf("fatal API error: %v\n", err)
-	}
-}
-
-func run() error {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	go func() {
-		// graceful shutdown
-		c := make(chan os.Signal, 1)
-		signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-		<-c
-		fmt.Printf("sigterm/interrupt signal\n")
-		cancel()
-	}()
-
-	defer func() {
-		// recover after panic
-		if x := recover(); x != nil {
-			fmt.Printf("run time panic:\n%v\n", x)
-			panic(x)
-		}
-	}()
-
-	api := api.New()
-	if err := api.Run(ctx, ":8090"); err != nil {
-		return err
+		logger.Fatalf("Error loading .env file")
 	}
 
-	return nil
+	var cfg config.Config
+	err = envconfig.Process("", &cfg)
+	if err != nil {
+		logger.WithError(err).Fatal("error processing environment config")
+	}
+
+	port := ":8090"
+
+	chiRouter := chi.NewRouter()
+	chiRouter.Get("/swagger/*", httpSwagger.Handler(
+		httpSwagger.URL(fmt.Sprintf("http://localhost%s/swagger/doc.json", port)), //The url pointing to API definition
+	))
+	httpClient := http.Client{}
+
+	paymentsValidator := validation.NewPaymentValidator(logger)
+	bankSimApiClient := clients.NewBankSimAPI(httpClient, &cfg, logger)
+	paymentsRepository := repository.NewPaymentsRepository(logger)
+	paymentsService := payments.NewService(paymentsRepository, bankSimApiClient, paymentsValidator, logger)
+	handlers := controllers.NewHandlers(paymentsService, paymentsValidator, logger)
+	handlers.SetupRoutes(chiRouter)
+
+	logger.Fatal(http.ListenAndServe(port, chiRouter))
 }

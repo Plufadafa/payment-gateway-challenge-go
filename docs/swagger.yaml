@@ -1,25 +1,118 @@
 basePath: /
 definitions:
-  main.Pong:
+  models.Payment:
     properties:
-      message:
+      amount:
+        type: integer
+      card_number_last_four:
+        type: integer
+      currency:
         type: string
+      expiry_month:
+        type: integer
+      expiry_year:
+        type: integer
+      id:
+        type: string
+      payment_status:
+        $ref: '#/definitions/status.State'
     type: object
-host: localhost:8089
+  models.ProcessPaymentRequest:
+    properties:
+      amount:
+        type: integer
+      card_number:
+        type: string
+      currency:
+        type: string
+      cvv:
+        type: string
+      expiry_month:
+        type: integer
+      expiry_year:
+        type: integer
+    type: object
+  status.State:
+    enum:
+    - Authorized
+    - Declined
+    type: string
+    x-enum-varnames:
+    - StateAuthorized
+    - StateDeclined
+host: localhost:8090
 info:
   contact: {}
   description: Interview challenge for building a Payment Gateway - Go version
   title: Payment Gateway Challenge Go
 paths:
-  /ping:
-    get:
+  /api/payments:
+    post:
+      consumes:
+      - application/json
+      description: Requests a payment be sent to a simulated bank API. Persists the
+        outcome of the payment and  returns the processed payment
+      operationId: request-payment
+      parameters:
+      - description: Payment Process Request
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/models.ProcessPaymentRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.Pong'
+            $ref: '#/definitions/models.Payment'
+        "400":
+          description: Bad Request
+        "422":
+          description: Unprocessable Entity
+        "500":
+          description: Internal Server Error
+      summary: Process Payment
+      tags:
+      - Payments
+  /api/payments/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Gets a Payment by ID.
+      operationId: get-payment
+      parameters:
+      - description: id of the payment
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Payment'
+        "404":
+          description: Not Found
+        "422":
+          description: Unprocessable Entity
+        "500":
+          description: Internal Server Error
+      summary: Get a Payment
+      tags:
+      - Payments
+  /ping:
+    get:
+      operationId: get-ping
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      summary: Ping the server
 securityDefinitions:
   BasicAuth:
     type: basic
