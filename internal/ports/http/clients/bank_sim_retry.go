@@ -21,7 +21,7 @@ type (
 	}
 
 	IBankSimApiRetryHandler interface {
-		BeginRetry(paymentID, url string, bodyBytesReader *bytes.Reader) (*models.BankSimPaymentResponse, error)
+		BeginRetry(paymentID, url string, request *models.BankSimPaymentRequest) (*models.BankSimPaymentResponse, error)
 	}
 )
 
@@ -37,10 +37,10 @@ func NewBankSimApiRetryHandler(httpClient http.Client, cfg *config.Config, logge
 	}
 }
 
-func (b *BankSimApiRetryHandler) BeginRetry(paymentID, url string, bodyBytesReader *bytes.Reader) (*models.BankSimPaymentResponse, error) {
+func (b *BankSimApiRetryHandler) BeginRetry(paymentID, url string, request *models.BankSimPaymentRequest) (*models.BankSimPaymentResponse, error) {
 	for i := 0; i < maxRetryLimit; i++ {
 		b.logger.Infof("attempting payment request retry for paymentID: [%s] attempt: [%v]", paymentID, i)
-		resp, shouldRetry, err := b.performRequest(paymentID, url, i, bodyBytesReader)
+		resp, shouldRetry, err := b.performRequest(paymentID, url, i, request)
 		// shortcuts to continue the exponential backoff with a wait
 		if shouldRetry {
 			secRetry := math.Pow(2, float64(i))
@@ -63,8 +63,13 @@ func (b *BankSimApiRetryHandler) BeginRetry(paymentID, url string, bodyBytesRead
 }
 
 // isolates the request logic from retry loop, ensures defers are completed so no resource leaks. Easier to maintain.
-func (b *BankSimApiRetryHandler) performRequest(paymentID, url string, retryAttempt int, bodyBytesReader *bytes.Reader) (response *models.BankSimPaymentResponse, attemptRetry bool, err error) {
+func (b *BankSimApiRetryHandler) performRequest(paymentID, url string, retryAttempt int, request *models.BankSimPaymentRequest) (response *models.BankSimPaymentResponse, attemptRetry bool, err error) {
 	var paymentResponse models.BankSimPaymentResponse
+	bodyBytes, err := json.Marshal(request)
+	if err != nil {
+		return nil, false, errors.New("error marshalling payment request")
+	}
+	bodyBytesReader := bytes.NewReader(bodyBytes)
 	req, err := http.NewRequest(http.MethodPost, url, bodyBytesReader)
 	if err != nil {
 		b.logger.WithError(err).Error("error creating http request for new payment request")
@@ -93,6 +98,7 @@ func (b *BankSimApiRetryHandler) performRequest(paymentID, url string, retryAtte
 			return nil, false, err
 		}
 		responseBodyString := bytes.NewBuffer(bod).String()
+
 		b.logger.Infof("paymentID: [%s] payment process resulted in error: [%v] error message: [%s]", paymentID, resp.StatusCode, responseBodyString)
 		return nil, false, nil
 	}

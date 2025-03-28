@@ -49,12 +49,11 @@ func (b *BankSimAPI) ForwardPaymentRequest(paymentID string, request *models.Ban
 		return nil, errors.New("bankSimPaymentRequest cannot be nil")
 	}
 
+	requestURL := b.cfg.BankSimURL + "/payments"
 	bodyBytes, err := json.Marshal(request)
 	if err != nil {
 		return nil, errors.New("error marshalling payment request")
 	}
-
-	requestURL := b.cfg.BankSimURL + "/payments"
 	bodyBytesReader := bytes.NewReader(bodyBytes)
 
 	req, err := http.NewRequest(http.MethodPost, requestURL, bodyBytesReader)
@@ -76,7 +75,7 @@ func (b *BankSimAPI) ForwardPaymentRequest(paymentID string, request *models.Ban
 	if resp.StatusCode != http.StatusOK {
 		// begins exponential backoff in the event server is temporarily unavailable
 		if resp.StatusCode == http.StatusServiceUnavailable {
-			r, err := b.bankSimApiRetryHandler.BeginRetry(paymentID, requestURL, bodyBytesReader)
+			r, err := b.bankSimApiRetryHandler.BeginRetry(paymentID, requestURL, request)
 			if err != nil {
 				b.logger.WithError(err).Error("error retrying http request for new payment request")
 				return nil, err

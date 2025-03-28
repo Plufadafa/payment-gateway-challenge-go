@@ -90,6 +90,7 @@ func (h *Handlers) processPayment(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.logger.WithError(err).Errorf("error processing payment with paymentID: [%s]", paymentID)
 		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(processedPayment)
