@@ -106,6 +106,9 @@ const docTemplate = `{
                 "produces": [
                     "application/json"
                 ],
+                "tags": [
+                    "Ping"
+                ],
                 "summary": "Ping the server",
                 "operationId": "get-ping",
                 "responses": {
@@ -124,7 +127,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "card_number_last_four": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "currency": {
                     "type": "string"

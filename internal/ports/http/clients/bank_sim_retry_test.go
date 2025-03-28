@@ -59,7 +59,7 @@ func TestBeginRetry(t *testing.T) {
 
 					if tt.badRequestafterAttempts > 0 {
 						w.WriteHeader(http.StatusBadRequest)
-						w.Write([]byte("bad request"))
+						w.Write([]byte("bad request")) //nolint errcheck
 						return
 					}
 
@@ -69,9 +69,7 @@ func TestBeginRetry(t *testing.T) {
 						t.Errorf("error marshalling response: %v", err)
 						return
 					}
-					w.Write(m)
-
-					break
+					w.Write(m) //nolint errcheck
 				default:
 					t.Errorf("Unexpected HTTP method: %s", r.Method)
 				}

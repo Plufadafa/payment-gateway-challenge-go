@@ -72,7 +72,7 @@ func (b *BankSimAPI) ForwardPaymentRequest(paymentID string, request *models.Ban
 		b.logger.WithError(err).Error("error performing http request for new payment request")
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint errcheck
 
 	var response models.BankSimPaymentResponse
 

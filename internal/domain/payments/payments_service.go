@@ -145,7 +145,7 @@ func (s *Service) formatExpiryDate(month, year int) string {
 func (s *Service) persistPayment(paymentID string, paymentToPersist repository.Payment) *repository.Payment {
 	persistedPayment, err := s.paymentsRepository.AddPayment(paymentToPersist)
 	if err != nil {
-		if errors.Is(repository.ErrPaymentIDCollision, err) {
+		if errors.Is(err, repository.ErrPaymentIDCollision) {
 			s.logger.Infof("uuid collision occurred for paymentID: [%s], reattempting repository write", paymentID)
 			newPaymentID := s.paymentIDCreator.CreatePaymentID()
 			s.logger.Infof("reattempting payment persistence. Reassigning paymentID: [%s] to [%s]", paymentToPersist.Id, newPaymentID)
@@ -162,7 +162,7 @@ func (s *Service) retryPersistPayment(originalPaymentID string, paymentToPersist
 	for i := 0; i < maxPersistenceAttempt; i++ {
 		persistedPayment, err := s.paymentsRepository.AddPayment(*paymentToPersist)
 		if err != nil {
-			if errors.Is(repository.ErrPaymentIDCollision, err) {
+			if errors.Is(err, repository.ErrPaymentIDCollision) {
 				s.logger.Errorf("uuid collision occurred for paymentID: [%s] on retry attempt: [%s]", paymentToPersist.Id, strconv.Itoa(i))
 				newPaymentID := s.paymentIDCreator.CreatePaymentID()
 				s.logger.Infof("reattempting payment persistence. Reassigning paymentID: [%s] to [%s]", paymentToPersist.Id, newPaymentID)

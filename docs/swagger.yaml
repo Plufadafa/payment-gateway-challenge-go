@@ -5,7 +5,7 @@ definitions:
       amount:
         type: integer
       card_number_last_four:
-        type: integer
+        type: string
       currency:
         type: string
       expiry_month:
@@ -113,6 +113,8 @@ paths:
         "200":
           description: OK
       summary: Ping the server
+      tags:
+      - Ping
 securityDefinitions:
   BasicAuth:
     type: basic

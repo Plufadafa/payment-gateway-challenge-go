@@ -9,6 +9,7 @@ import (
 // @Summary Ping the server
 // @ID get-ping
 // @Produce json
+// @Tags Ping
 // @Success 200
 // @Router /ping [get]
 func (h *Handlers) getPing(w http.ResponseWriter, r *http.Request) {

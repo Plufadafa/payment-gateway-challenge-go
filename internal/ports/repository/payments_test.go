@@ -27,10 +27,13 @@ func TestRepositorySuite(t *testing.T) {
 func (s *RepositorySuite) SetupTest() {
 	logger := logrus.New().WithContext(context.Background())
 	s.repo = repository.NewPaymentsRepository(logger)
-	s.repo.AddPayment(repository.Payment{
+	_, err := s.repo.AddPayment(repository.Payment{
 		Id:         existingUUID,
 		Authorized: "Authorized",
 	})
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (s *RepositorySuite) TestAddPayment_PaymentIDExists_ReturnsErrPaymentIDCollision() {

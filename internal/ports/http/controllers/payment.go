@@ -28,7 +28,10 @@ func (h *Handlers) getPayment(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.logger.Infof("paymentID: [%s] failed validation: %v", id, err)
 		w.WriteHeader(http.StatusUnprocessableEntity)
-		w.Write([]byte(err.Error()))
+		_, err := w.Write([]byte(err.Error()))
+		if err != nil {
+			h.logger.Errorf("write error: %v", err)
+		}
 		return
 	}
 
@@ -82,7 +85,10 @@ func (h *Handlers) processPayment(w http.ResponseWriter, r *http.Request) {
 		}
 		h.logger.Infof("request to process payment for paymentID: [%s] failed validation: %v", paymentID, err)
 		w.WriteHeader(http.StatusUnprocessableEntity)
-		w.Write([]byte(err.Error()))
+		_, err := w.Write([]byte(err.Error()))
+		if err != nil {
+			h.logger.Errorf("write error occurred for paymentID: [%s]", paymentID)
+		}
 		return
 	}
 
@@ -92,6 +98,11 @@ func (h *Handlers) processPayment(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(processedPayment)
+
+	err = json.NewEncoder(w).Encode(processedPayment)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		h.logger.Errorf("write error occurred for paymentID: [%s]", paymentID)
+		return
+	}
 }

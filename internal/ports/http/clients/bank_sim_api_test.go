@@ -120,13 +120,11 @@ func TestForwardPaymentRequest(t *testing.T) {
 							t.Errorf("error marshalling response: %v", err)
 							return
 						}
-						w.Write(m)
+						w.Write(m) //nolint errcheck
 					} else {
 						w.WriteHeader(http.StatusBadRequest)
-						w.Write([]byte(tt.expectedError.Error()))
+						w.Write([]byte(tt.expectedError.Error())) //nolint errcheck
 					}
-
-					break
 				default:
 					t.Errorf("Unexpected HTTP method: %s", r.Method)
 				}

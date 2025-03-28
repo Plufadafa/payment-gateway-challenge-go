@@ -82,7 +82,7 @@ func (b *BankSimApiRetryHandler) performRequest(paymentID, url string, retryAtte
 		b.logger.WithError(err).Error("error performing http request for new payment request")
 		return nil, false, err
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		// this is the only status code which should trigger a retry
